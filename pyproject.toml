@@ -1,0 +1,19 @@
+[project]
+name = "tbank-transaction-analyzer"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Evgeny Danilov",email = "jkuujhx2@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "requests (>=2.32.4,<3.0.0)",
+    "pandas (>=2.3.1,<3.0.0)",
+    "pytest (>=8.4.1,<9.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
