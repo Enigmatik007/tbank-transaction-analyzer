@@ -5,6 +5,6 @@ from src.api.finance_client import get_currency_rates
 
 def test_currency_rates_format():
     rates = get_currency_rates()
-    assert "USD_RUB" in rates
-    assert "EUR_RUB" in rates
-    assert isinstance(rates["USD_RUB"], float)
+    # Проверяем новый формат ответа
+    assert any(item["currency"] == "USD" for item in rates)
+    assert isinstance(rates[0]["rate"], float)

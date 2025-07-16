@@ -1,35 +1,85 @@
+"""Модуль с бизнес-логикой сервисов."""
+
 import logging
+from typing import Any, Dict, List, cast
+
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 
-def calculate_cashback(df: pd.DataFrame) -> float:
-    """Рассчитывает суммарный кешбэк (1% от суммы операций)."""
-    if df.empty:
-        logger.info("Передан пустой DataFrame — кешбэк равен 0.")
-        return 0.0
-
-    # Заменяем пустые значения на 0, приводим к float
-    cashback_series = pd.to_numeric(df["Кэшбэк"], errors="coerce").fillna(0.0)
-    cashback_sum = cashback_series.sum()
-
-    logger.debug(f"Рассчитан кешбэк: {cashback_sum}")
-    return float(cashback_sum)
-
-
-def round_transactions(df: pd.DataFrame, step: int) -> pd.DataFrame:
+def profitable_cashback_categories(data: List[Dict[str, Any]], year: int, month: int) -> Dict[str, float]:
     """
-    Округляет сумму операции с округлением на инвесткопилку до ближайшего 'step'.
+    Анализирует выгодные категории для кешбэка.
+
+    Args:
+        data: Список транзакций.
+        year: Год для анализа.
+        month: Месяц для анализа.
+
+    Returns:
+        Dict[str, float]: Словарь {категория: сумма кешбэка}.
     """
-    def round_value(x: float) -> float:
-        if pd.isna(x):
+    try:
+        df = pd.DataFrame(data)
+        df["Дата операции"] = pd.to_datetime(df["Дата операции"])
+
+        # Фильтрация по дате
+        mask = (df["Дата операции"].dt.year == year) & (df["Дата операции"].dt.month == month)
+        filtered = df.loc[mask]
+
+        # Расчет кешбэка (1% от расходов)
+        cashback_series = (
+            filtered[filtered["Сумма операции"] < 0].groupby("Категория")["Сумма операции"].sum().mul(-0.01).round(2)
+        )
+
+        result = cast(Dict[str, float], cashback_series.to_dict())
+
+        logger.info(f"Cashback analysis completed for {month}/{year}")
+        return result
+
+    except Exception as e:
+        logger.error(f"Error in cashback analysis: {str(e)}")
+        raise
+
+
+def investment_bank(month: str, transactions: List[Dict[str, Any]], limit: int) -> float:
+    """
+    Рассчитывает сумму для инвесткопилки через округление.
+
+    Args:
+        month: Месяц в формате 'YYYY-MM'.
+        transactions: Список транзакций.
+        limit: Шаг округления (10, 50, 100).
+
+    Returns:
+        float: Сумма для инвесткопилки.
+    """
+    try:
+        df = pd.DataFrame(transactions)
+        if df.empty or "Дата операции" not in df.columns or "Сумма операции" not in df.columns:
+            logger.info("Empty or invalid transactions data")
             return 0.0
-        remainder = x % step
-        return x + (step - remainder) if remainder != 0 else x
 
-    df = df.copy()
-    df["Сумма операции с округлением"] = df["Сумма операции"].apply(round_value)
+        df["Дата операции"] = pd.to_datetime(df["Дата операции"])
 
-    logger.debug(f"Применено округление с шагом {step} к {len(df)} транзакциям.")
-    return df
+        # Фильтрация по месяцу
+        year_num, month_num = map(int, month.split("-"))
+        mask = (df["Дата операции"].dt.year == year_num) & (df["Дата операции"].dt.month == month_num)
+        filtered = df.loc[mask]
+
+        if filtered.empty:
+            logger.info("No transactions found for the given month.")
+            return 0.0
+
+        # Округление
+        rounded = np.ceil(filtered["Сумма операции"] / limit) * limit
+        savings = (rounded - filtered["Сумма операции"]).sum()
+
+        logger.info(f"Calculated savings: {savings:.2f} for {month_num}/{year_num}")
+        return float(savings)
+
+    except Exception as e:
+        logger.error(f"Error in investment calculation: {str(e)}")
+        raise
