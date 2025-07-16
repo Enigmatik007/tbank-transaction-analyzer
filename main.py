@@ -1,12 +1,15 @@
-# main.py
-
+import logging
 from src.core.transactions import load_transactions
 from src.core.services.services import calculate_cashback, round_transactions
 from src.core.reports.reports import generate_spending_report
 from src.api.finance_client import get_currency_rates
 
-
 def main():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s — %(name)s — %(levelname)s — %(message)s",
+    )
+
     # Загрузка и обработка данных
     df = load_transactions("data/raw/operations.xlsx")
     df = round_transactions(df, step=10)
@@ -23,11 +26,8 @@ def main():
         print(f"  {pair}: {rate:.2f}")
 
     print("\n📂 Отчёт по тратам (за 3 последних месяца):")
-    for (month, category), amount in report.items():
-        print(f"  {month} — {category}: {amount:.2f} ₽")
-
+    for category, amount in report.items():
+        print(f"  {category}: {amount:.2f} ₽")
 
 if __name__ == "__main__":
     main()
-
-

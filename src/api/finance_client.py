@@ -1,11 +1,13 @@
 # src/api/finance_client.py
 
 import os
-import requests
 from typing import Dict
+
 from dotenv import load_dotenv
+import requests
 
 load_dotenv()  # Загружаем .env
+
 
 def get_currency_rates() -> Dict[str, float]:
     """Получает актуальные курсы валют с Twelve Data API."""

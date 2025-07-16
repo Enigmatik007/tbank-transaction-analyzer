@@ -1,67 +1,52 @@
-# src/core/web/views.py
+import logging
 from datetime import datetime
-from typing import Dict, List
-import pandas as pd
-from src.api.finance_client import FinanceClient
+
+from src.api.finance_client import get_currency_rates
+from src.core.transactions import load_transactions
+
+logger = logging.getLogger(__name__)
 
 
-def home_page(datetime_str: str) -> Dict:
+def home_page(datetime_str: str) -> dict:
     """
-    Генерирует JSON для главной страницы согласно ТЗ.
+    Возвращает JSON с приветствием, списком карт, топ-5 транзакциями и курсами валют.
+    """
+    try:
+        dt = datetime.fromisoformat(datetime_str)
+        hour = dt.hour
+        if 5 <= hour < 12:
+            greeting = "Доброе утро"
+        elif 12 <= hour < 18:
+            greeting = "Добрый день"
+        elif 18 <= hour < 23:
+            greeting = "Добрый вечер"
+        else:
+            greeting = "Доброй ночи"
 
-    Args:
-        datetime_str: Дата в формате 'YYYY-MM-DD HH:MM:SS'
+        logger.info(f"Выбрано приветствие: {greeting} (время: {datetime_str})")
 
-    Returns:
-        {
-            "greeting": str,
-            "cards": List[Dict],
-            "top_transactions": List[Dict],
-            "currency_rates": Dict[str, float]
+        df = load_transactions()
+        logger.debug(f"Загружено транзакций: {len(df)}")
+
+        cards = sorted(set(df["Номер карты"].dropna().unique()))
+        logger.debug(f"Обнаружены карты: {cards}")
+
+        top5 = (
+            df.sort_values("Дата операции", ascending=False)
+            .head(5)[["Дата операция", "Описание", "Сумма операции", "Категория"]]
+            .to_dict(orient="records")
+        )
+
+        rates = get_currency_rates()
+        logger.debug(f"Курсы валют получены: {rates}")
+
+        return {
+            "greeting": greeting,
+            "cards": cards,
+            "top_transactions": top5,
+            "currency_rates": rates,
         }
 
-    Пример вызова:
-    >>> home_page("2023-01-01 12:00:00")
-    {
-        "greeting": "Добро пожаловать! 01 January 2023",
-        "cards": [{"id": 1, "balance": 15000.50}],
-        "top_transactions": [
-            {"amount": 5000, "category": "shopping"},
-            {"amount": 3000, "category": "food"}
-        ],
-        "currency_rates": {"USD": 75.45, "EUR": 90.20}
-    }
-    """
-    # Парсим дату
-    try:
-        date_obj = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
-    except ValueError as e:
-        raise ValueError(f"Неверный формат даты. Ожидается 'YYYY-MM-DD HH:MM:SS'. Ошибка: {str(e)}")
-
-    # Получаем курсы валют
-    client = FinanceClient()
-    currency_rates = {
-        "USD": client.get_currency_rate("USD"),
-        "EUR": client.get_currency_rate("EUR")
-    }
-
-    # Формируем ответ
-    return {
-        "greeting": f"Добро пожаловать! {date_obj.strftime('%d %B %Y')}",
-        "cards": _get_user_cards(),  # Вспомогательная функция
-        "top_transactions": _get_top_transactions(),
-        "currency_rates": currency_rates
-    }
-
-
-def _get_user_cards() -> List[Dict]:
-    """Возвращает список карт пользователя (заглушка)"""
-    return [{"id": 1, "balance": 15000.50}]
-
-
-def _get_top_transactions() -> List[Dict]:
-    """Возвращает топ-5 транзакций (заглушка)"""
-    return [
-        {"amount": 5000, "category": "shopping"},
-        {"amount": 3000, "category": "food"}
-    ]
+    except Exception as e:
+        logger.exception("Ошибка при формировании данных для главной страницы")
+        return {"error": str(e)}

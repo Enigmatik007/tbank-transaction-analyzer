@@ -1,23 +1,35 @@
-# src/core/services/services.py
-
+import logging
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+
+
 def calculate_cashback(df: pd.DataFrame) -> float:
-    """Рассчитывает суммарный кешбэк (1% от всех расходов RUB)."""
-    rub_expenses = df[(df["Валюта операции"] == "RUB") & (df["Сумма операции"] < 0)]
-    cashback = -rub_expenses["Сумма операции"].sum() * 0.01
-    return round(cashback, 2)
+    """Рассчитывает суммарный кешбэк (1% от суммы операций)."""
+    if df.empty:
+        logger.info("Передан пустой DataFrame — кешбэк равен 0.")
+        return 0.0
 
-def round_transactions(df: pd.DataFrame, step: int = 10) -> pd.DataFrame:
-    """Округляет суммы операций и сохраняет разницу в 'Округление на инвесткопилку'."""
+    # Заменяем пустые значения на 0, приводим к float
+    cashback_series = pd.to_numeric(df["Кэшбэк"], errors="coerce").fillna(0.0)
+    cashback_sum = cashback_series.sum()
+
+    logger.debug(f"Рассчитан кешбэк: {cashback_sum}")
+    return float(cashback_sum)
+
+
+def round_transactions(df: pd.DataFrame, step: int) -> pd.DataFrame:
+    """
+    Округляет сумму операции с округлением на инвесткопилку до ближайшего 'step'.
+    """
+    def round_value(x: float) -> float:
+        if pd.isna(x):
+            return 0.0
+        remainder = x % step
+        return x + (step - remainder) if remainder != 0 else x
+
     df = df.copy()
-    def calc_round(row):
-        if row["Сумма операции"] < 0:
-            amount = abs(row["Сумма операции"])
-            remainder = step - (amount % step)
-            return 0 if remainder == step else round(remainder, 2)
-        return 0
+    df["Сумма операции с округлением"] = df["Сумма операции"].apply(round_value)
 
-    df["Округление на инвесткопилку"] = df.apply(calc_round, axis=1)
-    df["Сумма операции с округлением"] = abs(df["Сумма операции"]) + df["Округление на инвесткопилку"]
+    logger.debug(f"Применено округление с шагом {step} к {len(df)} транзакциям.")
     return df
