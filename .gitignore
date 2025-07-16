@@ -1,15 +1,23 @@
+# Конфиги и секреты
+.env
+*.ini
+*.cfg
+config/local_*.json
+
 # PyCharm
 .idea/
+*.iml
+
+# Python
 __pycache__/
 *.py[cod]
+.python-version
 
-# Virtual Environment
+# Данные и кеш
+data/processed/
+*.parquet
+*.csv
+
+# Виртуальное окружение
 .venv/
 venv/
-
-# Logs
-*.log
-
-# Data files
-*.csv
-*.json
